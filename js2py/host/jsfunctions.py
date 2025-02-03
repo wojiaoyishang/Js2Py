@@ -1,3 +1,4 @@
+import re
 from ..base import *
 from six.moves.urllib.parse import quote, unquote
 
@@ -148,12 +149,27 @@ def isFinite(number):
 
 @Js
 def escape(text):
-    return quote(text.to_string().value)
+    def replacer(match):
+        char = match.group()
+        code = ord(char)
+        if code <= 0xff:
+            return f'%{code:02X}'
+        else:
+            return f'%u{code:04X}'
+    return re.sub(r'[^A-Za-z0-9@*_+\-./]', replacer, text.to_python())
 
 
 @Js
 def unescape(text):
-    return unquote(text.to_string().value)
+    def replacer(match):
+        u_group = match.group(1)
+        hex_group = match.group(2)
+        if u_group is not None:
+            return chr(int(u_group, 16))
+        elif hex_group is not None:
+            return chr(int(hex_group, 16))
+        return match.group()
+    return re.sub(r'%u([0-9A-Fa-f]{4})|%([0-9A-Fa-f]{2})', replacer, text.to_python(), flags=re.IGNORECASE)
 
 
 @Js
